@@ -1,0 +1,16 @@
+LOAD DATABASE
+    FROM mysql://custody:password@host.docker.internal:3306/user
+    INTO postgresql://custody:password@localhost:5432/user
+
+WITH include no drop, create tables, create indexes, reset sequences, foreign keys
+
+SET work_mem to '128MB', maintenance_work_mem to '512 MB'
+
+CAST type datetime to timestamp using zero-dates-to-null,
+     type date to date using zero-dates-to-null,
+     type tinyint to smallint
+
+EXCLUDING TABLE NAMES MATCHING 'foo', 'bar'
+
+BEFORE LOAD DO
+    $$ CREATE SCHEMA IF NOT EXISTS "user"; $$;
