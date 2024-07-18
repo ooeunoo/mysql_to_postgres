@@ -52,7 +52,7 @@ LOAD DATABASE
     FROM mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     INTO postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
-WITH include drop, create tables, drop indexes, preserve index names, foreign keys, uniquify index names, preserve index names
+WITH include drop, create tables, drop indexes, foreign keys, uniquify index names
 
 SET maintenance_work_mem to '128MB', work_mem to '12MB'
 
@@ -77,3 +77,7 @@ echo "PostgreSQL 테이블 목록 확인 중..."
 docker-compose exec postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "\dt"
 
 echo "마이그레이션이 완료되었습니다."
+
+# 검증 스크립트 실행
+./verify.sh
+
