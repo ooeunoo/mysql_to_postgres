@@ -7,7 +7,7 @@ echo "마이그레이션 결과를 검증합니다..."
 
 # MySQL 정보 추출 함수
 get_mysql_info() {
-    docker-compose exec -T mysql mysql --no-warnings -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -se "$1"
+    docker-compose exec -T mysql mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -se "$1" 2>/dev/null
 }
 
 # PostgreSQL 정보 추출 함수
@@ -24,7 +24,7 @@ echo "---------------------------------------------------"
 metrics=(
     "Table Count:SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}':SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'"
     "Column Count:SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${MYSQL_DATABASE}':SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public'"
-    "Index Count:SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema='${MYSQL_DATABASE}':SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public'"
+    "Index Count:SELECT COUNT(DISTINCT CONCAT(TABLE_NAME, '.', INDEX_NAME)) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = '${MYSQL_DATABASE}':SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public'"
     "Foreign Key Count:SELECT COUNT(*) FROM information_schema.key_column_usage WHERE referenced_table_schema='${MYSQL_DATABASE}':SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY' AND table_schema='public'"
     "Primary Key Count:SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type='PRIMARY KEY' AND table_schema='${MYSQL_DATABASE}':SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type='PRIMARY KEY' AND table_schema='public'"
 )
@@ -45,9 +45,9 @@ echo "---------------------------------------------------"
 
 # 테이블별 레코드 수 비교
 echo -e "\n테이블별 레코드 수 비교:"
-echo "---------------------------------------------------"
-printf "| %-20s | %-10s | %-10s | %-5s |\n" "Table Name" "MySQL" "PostgreSQL" "Match"
-echo "---------------------------------------------------"
+echo "---------------------------------------------------------------"
+printf "| %-28s | %10s | %10s | %-5s |\n" "Table Name" "MySQL" "PostgreSQL" "Match"
+echo "---------------------------------------------------------------"
 
 # MySQL 테이블 목록 가져오기
 TABLES=$(get_mysql_info "SHOW TABLES;")
@@ -60,8 +60,54 @@ for table in $TABLES; do
     else
         match="No"
     fi
-    printf "| %-20s | %-10s | %-10s | %-5s |\n" "$table" "$mysql_count" "$pg_count" "$match"
+    printf "| %-28s | %10s | %10s | %-5s |\n" "$table" "$mysql_count" "$pg_count" "$match"
 done
-echo "---------------------------------------------------"
 
-echo -e "\n검증이 완료되었습니다. 위의 결과를 확인하여 마이그레이션이 성공적으로 이루어졌는지 확인해 주세요."
+echo "---------------------------------------------------------------"
+# 인덱스 비교
+echo -e "\n인덱스 비교:"
+echo "---------------------------------------------------------------------------------"
+printf "| %-35s | %-35s | %-7s |\n" "MySQL Index" "PostgreSQL Index" "Match"
+echo "---------------------------------------------------------------------------------"
+
+# MySQL 인덱스 목록 가져오기
+mysql_indexes=$(get_mysql_info "
+    SELECT CONCAT(TABLE_NAME, '.', INDEX_NAME) 
+    FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = '${MYSQL_DATABASE}' 
+    GROUP BY TABLE_NAME, INDEX_NAME 
+    ORDER BY TABLE_NAME, INDEX_NAME;
+")
+
+# PostgreSQL 인덱스 목록 가져오기
+pg_indexes=$(get_pg_info "
+    SELECT CONCAT(tablename, '.', indexname) 
+    FROM pg_indexes 
+    WHERE schemaname = 'public' 
+    ORDER BY tablename, indexname;
+")
+
+# 인덱스 비교
+while IFS= read -r mysql_index; do
+    table_name=${mysql_index%.*}
+    index_name=${mysql_index#*.}
+    
+    # PostgreSQL에서 잘린 인덱스 이름을 고려하여 검색
+    pg_index=$(echo "$pg_indexes" | grep -i "^${table_name}\." | grep -i "${index_name:0:30}")
+    
+    if [ -n "$pg_index" ]; then
+        match="Yes"
+    else
+        # 잘린 이름으로도 찾지 못한 경우, 더 짧은 부분 문자열로 검색
+        pg_index=$(echo "$pg_indexes" | grep -i "^${table_name}\." | grep -i "${index_name:0:20}")
+        if [ -n "$pg_index" ]; then
+            match="Yes*"  # 부분 일치를 나타내는 표시
+        else
+            match="No"
+            pg_index="N/A"
+        fi
+    fi
+    printf "| %-35s | %-35s | %-7s |\n" "${mysql_index:0:35}" "${pg_index:0:35}" "$match"
+done <<< "$mysql_indexes"
+
+echo "---------------------------------------------------------------------------------"

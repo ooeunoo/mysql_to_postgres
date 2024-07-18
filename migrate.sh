@@ -23,7 +23,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
 
-# user 테이블 존재 여부 확인 및 dumps/user_dumps.sql 임포트
+# local mysql에 user 테이블 존재 여부 확인 및 dumps/user_dumps.sql 임포트
 echo "user 테이블 존재 여부를 확인합니다..."
 TABLE_EXISTS=$(docker-compose exec -T mysql mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -se "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}' AND table_name='user';")
 
@@ -52,7 +52,9 @@ LOAD DATABASE
     FROM mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     INTO postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
-WITH include drop, create tables, drop indexes, foreign keys, uniquify index names
+
+WITH include drop, create tables, drop indexes, create indexes, foreign keys, uniquify index names, quote identifiers
+
 
 SET maintenance_work_mem to '128MB', work_mem to '12MB'
 
@@ -62,6 +64,7 @@ CAST type datetime to timestamp using zero-dates-to-null,
      type bigint with extra auto_increment to bigserial
 
 ALTER SCHEMA '${MYSQL_DATABASE}' RENAME TO 'public'
+
 
 BEFORE LOAD DO
   \$\$ CREATE EXTENSION IF NOT EXISTS pgcrypto; \$\$
