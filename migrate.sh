@@ -23,6 +23,18 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
 
+# user 테이블 존재 여부 확인 및 dumps/user_dumps.sql 임포트
+echo "user 테이블 존재 여부를 확인합니다..."
+TABLE_EXISTS=$(docker-compose exec -T mysql mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -se "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}' AND table_name='user';")
+
+if [ "$TABLE_EXISTS" -eq 0 ]; then
+    echo "user 테이블이 존재하지 않습니다. dumps/user_dumps.sql을 임포트합니다..."
+    docker-compose exec -T mysql mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < dumps/user_dumps.sql
+    echo "dumps/user_dumps.sql 임포트가 완료되었습니다."
+else
+    echo "user 테이블이 이미 존재합니다. dumps/user_dumps.sql 임포트를 건너뜁니다."
+fi
+
 # PostgreSQL 컨테이너 시작
 echo "PostgreSQL 컨테이너를 시작합니다..."
 docker-compose up -d postgres
@@ -40,12 +52,19 @@ LOAD DATABASE
     FROM mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
     INTO postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
-WITH include no drop, create tables, create indexes, reset sequences
+WITH include drop, create tables, drop indexes, preserve index names, foreign keys, uniquify index names, preserve index names
 
 SET maintenance_work_mem to '128MB', work_mem to '12MB'
 
 CAST type datetime to timestamp using zero-dates-to-null,
-     type date to date using zero-dates-to-null
+     type date to date using zero-dates-to-null,
+     type int with extra auto_increment to serial,
+     type bigint with extra auto_increment to bigserial
+
+ALTER SCHEMA '${MYSQL_DATABASE}' RENAME TO 'public'
+
+BEFORE LOAD DO
+  \$\$ CREATE EXTENSION IF NOT EXISTS pgcrypto; \$\$
 ;
 EOF
 
