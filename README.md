@@ -29,7 +29,7 @@
 
 ### 1. Docker를 사용한 PostgreSQL (기본 설정)
 
-1. `docker-compose.yml` 파일에서 PostgreSQL 서비스가 주석 해제:
+1. `docker-compose.yml` 파일에서 PostgreSQL 주석 해제:
   
    ```yaml
    postgres:
@@ -55,11 +55,14 @@
 
 #### 사전 준비
 
-1. MySQL 덤프 파일 준비:
-   로컬 mysqldump 또는 tool 이용하기
+1. MySQL 덤프 파일 준비(dumps/[파일명]_dump.sql):
+
+   *로컬 mysqldump 또는 tool 이용하기
 
    ```bash
-   $ mysqldump -u root -p --databases user > user_dump.sql
+   $ mysqldump -u root -p --databases user > user_dump.sql 
+
+
 
 #### 실행
 
@@ -75,5 +78,4 @@
    ```
 
 
-Citations:
-[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/22538633/3e4d768d-9ae1-4d38-8215-504802d4e059/paste.txt
+https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/22538633/3e4d768d-9ae1-4d38-8215-504802d4e059/paste.txt
