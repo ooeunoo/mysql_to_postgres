@@ -1,81 +1,80 @@
-# MySQL에서 PostgreSQL로의 데이터 마이그레이션
+# MySQL에서 PostgreSQL로의 데이터 마이그레이션 가이드
 
-## 환경 설정
+Docker와 pgloader를 사용하여 MySQL에서 PostgreSQL로 데이터를 마이그레이션하는 스크립트
 
-1. `.env` 파일 생성:
-   ```
-   $ cp env.example .env
-   ```
+## 사전 요구사항
 
-2. `.env` 파일 내용 설정:
-   ```
-   # MySQL 설정 (dump파일을 임시로 로컬에 구현하기위함)
-   MYSQL_ROOT_PASSWORD=qwer1234
-   MYSQL_DATABASE=user
-   MYSQL_PORT=3333
+- postgresql
+- Python 3.x
+- Docker, Docker Compose
 
-   # PostgreSQL 설정
-   POSTGRES_DB=
-   POSTGRES_USER=
-   POSTGRES_PASSWORD=
-   POSTGRES_HOST=
-   POSTGRES_PORT=
+## postgresql
 
-   # 공통 데이터 폴더
-   DATA_PATH_HOST=./data
-   ```
+```
+$ brew install postgresql
+```
 
-## 로컬 테스트 가이드
 
-### 1. Docker를 사용한 PostgreSQL (기본 설정)
+## 설치
 
-1. `docker-compose.yml` 파일에서 PostgreSQL 주석 해제:
-  
-   ```yaml
-   postgres:
-     image: postgres:16
-     environment:
-       POSTGRES_DB: ${POSTGRES_DB}
-       POSTGRES_USER: ${POSTGRES_USER}
-       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-     ports:
-       - "${POSTGRES_PORT}:5432"
-     volumes:
-       - ${DATA_PATH_HOST}/postgres:/var/lib/postgresql/data
-     networks:
-       - migration_network
-   ```
+1. 의존성 설치: `requirements.txt` 패키지 설치
+```bash
+$ pip install -r requirements.txt
+```
 
-2. Docker 컨테이너 실행:
-   ```
-   $ docker-compose up -d
-   ```
+## 사용 방법
 
-## 마이그레이션 실행
+1. 실행
+```bash
+$ python app.py
+```
 
-#### 사전 준비
+2. localhost:5000 접속
 
-1. MySQL 덤프 파일 준비(dumps/[파일명]_dump.sql):
+3. postgresql 설정 입력
 
-   *로컬 mysqldump 또는 tool 이용하기
+4. 연결 후 dump파일 업로드 (***dump의 파일명 형식은 [데이터베이스명]_dumps.sql***)
 
-   ```bash
-   $ mysqldump -u root -p --databases user > user_dump.sql 
+5. migrate 진행
 
 
 
-#### 실행
+## 로컬 Postgres 띄우기
 
-1. 마이그레이션 스크립트 실행 권한 부여:
-   ```
-   $ chmod +x migrate.sh
-   $ chmod +x verify.sh
-   ```
+```sh
+$ chmod +x ./docker/postgres/start.sh
+$ ./docker/postgres/start.sh
+Enter database name: custody
+Enter database user: user
+Enter database password: 
+Starting PostgreSQL Docker container...
+a4b6c6292639420a60fbfc924cfdc7661387553a33cff0b5930bda4fc1699d4a
+PostgreSQL container is starting. You can connect to it using:
+Host: localhost
+Port: 5432
+Database: custody
+User: user
+Password: [The password you entered]
+Waiting for PostgreSQL to be ready...
+localhost:5432 - no response
+Waiting for PostgreSQL... (1/30)
+localhost:5432 - accepting connections
+PostgreSQL is ready.
+```
 
-2. 마이그레이션 실행:
-   ```
-   $ ./migrate.sh
-   ```
+
+## Trubleshooting
+
+1. MySQL 접근 거부 오류
+
+**메시지**:
+```
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+data: Migration failed for user
+```
 
 
-https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/22538633/3e4d768d-9ae1-4d38-8215-504802d4e059/paste.txt
+**해결방안**
+```
+Migrate 버튼 재 클릭
+```
